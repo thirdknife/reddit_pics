@@ -1,0 +1,141 @@
+<html lang="en" class="no-js" ng-app="reddit">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Reddit Pics</title>
+	<meta name="description" content="Reddit pics Image Grid using AngularJS">
+	<meta name="keywords" content="image grid, effect, inspiration, css, javascript, animation, masonry, reddit, api, angularjs">
+	<meta name="author" content="thirdknife">
+	<link rel="shortcut icon" href="favicon.ico">
+	<link rel="stylesheet" type="text/css" href="css/normalize.css">
+	<link rel="stylesheet" type="text/css" href="fonts/font-awesome-4.3.0/css/font-awesome.min.css">
+	<link rel="stylesheet" type="text/css" href="css/demo.css">
+	<link rel="stylesheet" type="text/css" href="css/style2.css">
+	<script src="js/modernizr-custom.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.5/angular.min.js"></script>
+
+</head>
+<body class="demo-2">
+	<div class="container">
+		<div class="content">
+			<div class="grid" ng-app="reddit" ng-controller="pics">
+				<!-- ngRepeat: x in names | nsfw:this -->
+				<div class="grid__item" data-size="1280x857" ng-repeat="x in names | nsfw:this">
+					<a href="{{ x.data.url }}" class="img-wrap"><img src="{{ x.data.url }}" alt="{{ x.data.title }}" imageonload>
+						<div class="description description--grid">
+							<h3>{{ x.data.title }}</h3>
+						</div>
+					</a>
+				</div>
+				<!-- end ngRepeat: x in names | nsfw:this -->
+			</div>
+			<!-- /grid -->
+			<div class="preview">
+				<button class="action action--close"><i class="fa fa-times"></i><span class="text-hidden">Close</span></button>
+				<div class="description description--preview"></div>
+			<img class="original" src="" style="opacity: 0; max-width: calc(50vw - 0px); max-height: calc(100vh - 0px); transform: translate3d(0px, 0px, 0px) scale3d(1, 1, 1);"><img class="clone" src="" style="opacity: 0;"></div>
+			<!-- /preview -->
+		</div>
+		<!-- /content -->
+	</div>
+	<!-- /container -->
+	<script src="js/imagesloaded.pkgd.min.js"></script>
+	<script src="js/masonry.pkgd.min.js"></script>
+	<script src="js/classie.js"></script>
+	<script src="js/main.js"></script>
+	<script>
+		var app = angular.module('reddit', []);
+		var dataLength = 0;
+		var stack = 0;
+		app.controller('pics', function($scope, $http) {
+			$http.get("https://www.reddit.com/r/pics/new.json?sort=new&limit=100")
+			.success(function(response) {
+				$scope.names = response.data.children;
+			});
+		});
+		app.filter('nsfw', function() {
+			return function(list) {
+				if(!list){return};
+				var result = [];
+				for(i = 0; i < list.length; i++) {
+					if(list[i].data.url.indexOf("i.imgur") > -1 && list[i].data.url.indexOf("gif") == -1  && list[i].data.thumbnail != 'nsfw'){
+						result.push(list[i]);
+					}
+				}
+				stack = result.length;
+				return result;
+			}
+		});
+		app.directive('imageonload', function() {
+			return {
+				restrict: 'A',
+				link: function($scope, element, attrs) {
+					element.bind('load', function() {
+						dataLength++;
+						if(stack == dataLength){
+							applyGrid();
+						}
+					});
+				}
+			};
+		});
+		function applyGrid(){
+			var support = { transitions: Modernizr.csstransitions },
+			// transition end event name
+			transEndEventNames = { 'WebkitTransition': 'webkitTransitionEnd', 'MozTransition': 'transitionend', 'OTransition': 'oTransitionEnd', 'msTransition': 'MSTransitionEnd', 'transition': 'transitionend' },
+			transEndEventName = transEndEventNames[ Modernizr.prefixed( 'transition' ) ],
+			onEndTransition = function( el, callback ) {
+				var onEndCallbackFn = function( ev ) {
+					if( support.transitions ) {
+						if( ev.target != this ) return;
+						this.removeEventListener( transEndEventName, onEndCallbackFn );
+					}
+					if( callback && typeof callback === 'function' ) { callback.call(this); }
+				};
+				if( support.transitions ) {
+					el.addEventListener( transEndEventName, onEndCallbackFn );
+				}
+				else {
+					onEndCallbackFn();
+				}
+			};
+
+			new GridFx(document.querySelector('.grid'), {
+				imgPosition : {
+					x : -0.5,
+					y : 1
+				},
+				onOpenItem : function(instance, item) {
+					instance.items.forEach(function(el) {
+						if(item != el) {
+							var delay = Math.floor(Math.random() * 50);
+							el.style.WebkitTransition = 'opacity .5s ' + delay + 'ms cubic-bezier(.7,0,.3,1), -webkit-transform .5s ' + delay + 'ms cubic-bezier(.7,0,.3,1)';
+							el.style.transition = 'opacity .5s ' + delay + 'ms cubic-bezier(.7,0,.3,1), transform .5s ' + delay + 'ms cubic-bezier(.7,0,.3,1)';
+							el.style.WebkitTransform = 'scale3d(0.1,0.1,1)';
+							el.style.transform = 'scale3d(0.1,0.1,1)';
+							el.style.opacity = 0;
+						}
+					});
+				},
+				onCloseItem : function(instance, item) {
+					instance.items.forEach(function(el) {
+						if(item != el) {
+							el.style.WebkitTransition = 'opacity .4s, -webkit-transform .4s';
+							el.style.transition = 'opacity .4s, transform .4s';
+							el.style.WebkitTransform = 'scale3d(1,1,1)';
+							el.style.transform = 'scale3d(1,1,1)';
+							el.style.opacity = 1;
+
+							onEndTransition(el, function() {
+								el.style.transition = 'none';
+								el.style.WebkitTransform = 'none';
+							});
+						}
+					});
+				}
+			});
+		}
+	</script>
+</body>
+</html>
